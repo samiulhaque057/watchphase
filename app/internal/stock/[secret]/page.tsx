@@ -27,6 +27,11 @@ const productListSelect = {
   compareAtPriceCents: true,
   listingCategoryId: true,
   listingCategory: { select: { slug: true, label: true } },
+  listingCategoryLinks: {
+    select: {
+      listingCategory: { select: { id: true, slug: true, label: true } },
+    },
+  },
   badge: true,
   imageUrl: true,
   galleryImages: {

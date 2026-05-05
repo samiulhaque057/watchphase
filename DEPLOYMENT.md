@@ -75,7 +75,7 @@ ssh deploy@YOUR_DROPLET_IP
 
 ```bash
 mkdir -p ~/apps && cd ~/apps
-git clone YOUR_REPO_URL watchphase
+git clone https://github.com/samiulhaque057/watchphase watchphase
 cd watchphase
 npm install
 ```
@@ -148,7 +148,7 @@ volumes:
 Start DB:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.prod.yml up -d
 docker ps
 ```
 

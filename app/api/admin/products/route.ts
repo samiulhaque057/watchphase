@@ -20,6 +20,13 @@ export async function GET() {
       listingCategory: {
         select: { slug: true, label: true },
       },
+      listingCategoryLinks: {
+        select: {
+          listingCategory: {
+            select: { id: true, slug: true, label: true },
+          },
+        },
+      },
       badge: true,
       imageUrl: true,
       updatedAt: true,
@@ -64,14 +71,14 @@ export async function POST(request: Request) {
     SOLD_OUT: ProductBadge.SOLD_OUT,
   };
 
-  const listingCategory = await prisma.listingCategory.findUnique({
-    where: { id: data.listingCategoryId },
+  const listingCategories = await prisma.listingCategory.findMany({
+    where: { id: { in: data.listingCategoryIds } },
     select: { id: true },
   });
 
-  if (!listingCategory) {
+  if (listingCategories.length !== data.listingCategoryIds.length) {
     return NextResponse.json(
-      { error: "Listing category not found." },
+      { error: "One or more listing categories were not found." },
       { status: 400 },
     );
   }
@@ -86,6 +93,14 @@ export async function POST(request: Request) {
         description: data.description,
         imageUrl: data.imageUrl,
         listingCategoryId: data.listingCategoryId,
+        listingCategoryLinks: {
+          createMany: {
+            data: data.listingCategoryIds.map((listingCategoryId) => ({
+              listingCategoryId,
+            })),
+            skipDuplicates: true,
+          },
+        },
         priceCents: data.priceCents,
         compareAtPriceCents:
           typeof data.compareAtPriceCents === "number"

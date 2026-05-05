@@ -36,11 +36,17 @@ export type CatalogProduct = {
   sku: string;
   description: string;
   listingCategory: ListingCategoryPublic;
+  listingCategories: ListingCategoryPublic[];
   variations: CatalogVariation[];
 };
 
 export const prismaCatalogProductInclude = {
   listingCategory: { select: { id: true, slug: true, label: true } },
+  listingCategoryLinks: {
+    select: {
+      listingCategory: { select: { id: true, slug: true, label: true } },
+    },
+  },
   variations: {
     select: { sku: true, label: true, sortOrder: true },
     orderBy: { sortOrder: "asc" as const },
@@ -122,6 +128,9 @@ function badgeToUi(badge: ProductBadge): "Sale" | "Sold Out" | null {
 
 type DbProductWithCategory = Product & {
   listingCategory: Pick<ListingCategory, "id" | "slug" | "label">;
+  listingCategoryLinks?: Array<{
+    listingCategory: Pick<ListingCategory, "id" | "slug" | "label">;
+  }>;
   variations: CatalogVariation[];
   galleryImages?: ReadonlyArray<{ url: string; sortOrder: number }>;
 };
@@ -159,6 +168,18 @@ export function mapDbProduct(row: DbProductWithCategory): CatalogProduct {
       slug: row.listingCategory.slug,
       label: row.listingCategory.label,
     },
+    listingCategories:
+      row.listingCategoryLinks?.map((entry) => ({
+        id: entry.listingCategory.id,
+        slug: entry.listingCategory.slug,
+        label: entry.listingCategory.label,
+      })) ?? [
+        {
+          id: row.listingCategory.id,
+          slug: row.listingCategory.slug,
+          label: row.listingCategory.label,
+        },
+      ],
     price: formatTakaFromCents(row.priceCents),
     oldPrice:
       row.compareAtPriceCents != null
@@ -176,7 +197,9 @@ function filterProductsByListingCategorySlug(
     return products;
   }
   return products.filter(
-    (item) => item.listingCategory.slug === categorySlug,
+    (item) =>
+      item.listingCategory.slug === categorySlug ||
+      item.listingCategories.some((cat) => cat.slug === categorySlug),
   );
 }
 
@@ -229,7 +252,12 @@ export async function getCatalogProductsPage(
     };
   }
 
-  const where = { listingCategory: { slug: listingCategorySlug } };
+  const where = {
+    OR: [
+      { listingCategory: { slug: listingCategorySlug } },
+      { listingCategoryLinks: { some: { listingCategory: { slug: listingCategorySlug } } } },
+    ],
+  };
 
   try {
     const total = await prisma.product.count({ where });
@@ -285,7 +313,12 @@ export async function getCatalogProducts(
   try {
     const rows = await prisma.product.findMany({
       where: listingCategorySlug
-        ? { listingCategory: { slug: listingCategorySlug } }
+        ? {
+            OR: [
+              { listingCategory: { slug: listingCategorySlug } },
+              { listingCategoryLinks: { some: { listingCategory: { slug: listingCategorySlug } } } },
+            ],
+          }
         : undefined,
       include: prismaCatalogProductInclude,
       orderBy: { updatedAt: "desc" },

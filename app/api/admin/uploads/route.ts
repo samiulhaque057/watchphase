@@ -5,6 +5,7 @@ import {
   listProductUploadFiles,
   parseSafeProductUploadPublicUrl,
 } from "@/lib/admin-product-upload-files";
+import { getHomepageHeroImages } from "@/lib/hero-images";
 import { prisma } from "@/lib/prisma";
 
 const deleteBodySchema = z.object({
@@ -13,6 +14,7 @@ const deleteBodySchema = z.object({
 
 export async function GET() {
   const files = await listProductUploadFiles();
+  const heroImages = await getHomepageHeroImages();
   const products = await prisma.product.findMany({
     select: { imageUrl: true },
   });
@@ -22,6 +24,7 @@ export async function GET() {
   const inUseUrls = new Set<string>([
     ...products.map((p) => p.imageUrl),
     ...galleryRows.map((g) => g.url),
+    ...heroImages,
   ]);
 
   return NextResponse.json({
@@ -63,6 +66,17 @@ export async function DELETE(request: Request) {
       {
         error:
           "This file is attached to one or more listings. Delete or edit those listings first.",
+      },
+      { status: 409 },
+    );
+  }
+
+  const heroImages = await getHomepageHeroImages();
+  if (heroImages.includes(resolved.publicUrl)) {
+    return NextResponse.json(
+      {
+        error:
+          "This file is used in homepage hero slides. Remove it from Hero settings first.",
       },
       { status: 409 },
     );

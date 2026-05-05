@@ -262,6 +262,9 @@ type ListedProduct = {
   compareAtPriceCents: number | null;
   listingCategoryId: string;
   listingCategory: { slug: string; label: string };
+  listingCategoryLinks?: Array<{
+    listingCategory: { id: string; slug: string; label: string };
+  }>;
   badge: string;
   imageUrl: string;
   galleryImages?: ListedGalleryServerRow[];
@@ -331,8 +334,8 @@ export function StockAdminPanel({
   const [listingCategories, setListingCategories] = useState<
     ListedListingCategory[]
   >(initialListingCategories);
-  const [listingCategoryId, setListingCategoryId] = useState(
-    initialListingCategories[0]?.id ?? "",
+  const [listingCategoryIds, setListingCategoryIds] = useState<string[]>(
+    initialListingCategories[0]?.id ? [initialListingCategories[0].id] : [],
   );
   const [categoryFormSlug, setCategoryFormSlug] = useState("");
   const [categoryFormLabel, setCategoryFormLabel] = useState("");
@@ -427,13 +430,18 @@ export function StockAdminPanel({
     return products.filter((product) => {
       const vars = product.variations ?? [];
       const varHay = vars.map((v) => `${v.sku} ${v.label}`).join(" ");
+      const categoryHay =
+        product.listingCategoryLinks != null && product.listingCategoryLinks.length > 0
+          ? product.listingCategoryLinks
+              .map((row) => `${row.listingCategory.label} ${row.listingCategory.slug}`)
+              .join(" ")
+          : `${product.listingCategory.label} ${product.listingCategory.slug}`;
       const hay = [
         product.name,
         product.brand,
         product.sku,
         product.slug,
-        product.listingCategory.label,
-        product.listingCategory.slug,
+        categoryHay,
         varHay,
       ]
         .join(" ")
@@ -517,16 +525,15 @@ export function StockAdminPanel({
   const ordersUnreadBadgeCount =
     adminTab !== "orders" ? unseenOrdersCount : 0;
 
-  useEffect(() => {
-    if (listingCategories.length === 0) {
-      return;
-    }
-    setListingCategoryId((previous) =>
-      previous && listingCategories.some((cat) => cat.id === previous)
-        ? previous
-        : listingCategories[0]?.id ?? "",
+  const activeListingCategoryIds = useMemo(() => {
+    const valid = listingCategoryIds.filter((id) =>
+      listingCategories.some((cat) => cat.id === id),
     );
-  }, [listingCategories]);
+    if (valid.length > 0) {
+      return valid;
+    }
+    return listingCategories[0]?.id ? [listingCategories[0].id] : [];
+  }, [listingCategoryIds, listingCategories]);
 
   const resetNewListingForm = useCallback(() => {
     const firstId =
@@ -541,7 +548,7 @@ export function StockAdminPanel({
     setPriceMajor("");
     setCompareMajor("");
     setBadge("NONE");
-    setListingCategoryId(firstId);
+    setListingCategoryIds(firstId ? [firstId] : []);
     setVariationRows([]);
   }, [listingCategories, initialListingCategories]);
 
@@ -557,7 +564,7 @@ export function StockAdminPanel({
     setPriceMajor("");
     setCompareMajor("");
     setBadge("NONE");
-    setListingCategoryId("");
+    setListingCategoryIds([]);
     setVariationRows([]);
   }, []);
 
@@ -591,7 +598,13 @@ export function StockAdminPanel({
         : "",
     );
     setBadge(formBadge(product.badge));
-    setListingCategoryId(product.listingCategoryId);
+    const selectedCategoryIds =
+      product.listingCategoryLinks != null && product.listingCategoryLinks.length > 0
+        ? product.listingCategoryLinks.map((row) => row.listingCategory.id)
+        : product.listingCategoryId
+          ? [product.listingCategoryId]
+          : [];
+    setListingCategoryIds(selectedCategoryIds);
     setVariationRows(
       (product.variations ?? []).map((v, i) => ({
         rowKey: v.id ?? `srv-${product.id}-${v.sku}-${i}`,
@@ -1398,8 +1411,8 @@ export function StockAdminPanel({
 
     const normalizedSlug = slug.trim().toLowerCase();
 
-    if (!listingCategoryId.trim()) {
-      setSubmitMessage("Add a storefront category first, then pick it here.");
+    if (activeListingCategoryIds.length === 0) {
+      setSubmitMessage("Add at least one storefront category for this listing.");
       return;
     }
 
@@ -1435,7 +1448,7 @@ export function StockAdminPanel({
       galleryImages: trimmedGallery,
       priceCents,
       compareAtPriceCents: comparePayload === "" ? undefined : comparePayload,
-      listingCategoryId,
+      listingCategoryIds: activeListingCategoryIds,
       badge,
       variations: trimmedVariations,
     };
@@ -1778,8 +1791,15 @@ export function StockAdminPanel({
                             ) : null}
                           </div>
                           <div className="mt-1 text-[11px] uppercase tracking-[0.12em] text-black/45">
-                            {product.listingCategory.label} · /
-                            {product.listingCategory.slug}/
+                            {(product.listingCategoryLinks != null &&
+                            product.listingCategoryLinks.length > 0
+                              ? product.listingCategoryLinks.map(
+                                  (row) =>
+                                    `${row.listingCategory.label} (/${row.listingCategory.slug}/)`,
+                                )
+                              : [
+                                  `${product.listingCategory.label} (/${product.listingCategory.slug}/)`,
+                                ]).join(" · ")}
                           </div>
                           <div className="font-semibold">
                             {formatTakaFromCents(product.priceCents)}
@@ -3552,35 +3572,48 @@ export function StockAdminPanel({
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label
-                    htmlFor="category-field"
-                    className="text-xs uppercase tracking-[0.2em] text-black/60"
-                  >
-                    Store category
-                  </label>
-                  <select
-                    id="category-field"
-                    value={listingCategoryId}
-                    aria-label="Store category for listing"
-                    onChange={(event) =>
-                      setListingCategoryId(event.target.value)
-                    }
-                    required
-                    disabled={listingCategories.length === 0}
-                    className="mt-2 w-full border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-black disabled:cursor-not-allowed disabled:bg-gray-100"
-                  >
+                  <p className="text-xs uppercase tracking-[0.2em] text-black/60">
+                    Store categories
+                  </p>
+                  <div className="mt-2 space-y-2 rounded border border-gray-300 bg-white px-4 py-3">
                     {listingCategories.length === 0 ? (
-                      <option value="">No categories — add some first</option>
+                      <p className="text-sm text-black/55">
+                        No categories - add some first
+                      </p>
                     ) : (
-                      listingCategories.map((opt) => (
-                        <option key={opt.id} value={opt.id}>
-                          {opt.label} (/{opt.slug}/)
-                        </option>
-                      ))
+                      listingCategories.map((opt) => {
+                        const checked = activeListingCategoryIds.includes(opt.id);
+                        return (
+                          <label
+                            key={opt.id}
+                            className="flex items-center gap-2 text-sm text-black"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(event) =>
+                                setListingCategoryIds((previous) => {
+                                  if (event.target.checked) {
+                                    if (previous.includes(opt.id)) {
+                                      return previous;
+                                    }
+                                    return [...previous, opt.id];
+                                  }
+                                  return previous.filter((id) => id !== opt.id);
+                                })
+                              }
+                              className="h-4 w-4 accent-black"
+                            />
+                            <span>
+                              {opt.label} (/{opt.slug}/)
+                            </span>
+                          </label>
+                        );
+                      })
                     )}
-                  </select>
+                  </div>
                   <p className="mt-2 text-xs text-black/50">
-                    Controls which collection page lists this product (URLs match
+                    A listing can appear on multiple collection pages (URLs match
                     the Categories tab).
                   </p>
                 </div>

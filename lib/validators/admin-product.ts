@@ -25,19 +25,20 @@ export const createProductPayloadPreprocess = (raw: unknown): unknown => {
     return raw;
   }
   const o = raw as Record<string, unknown>;
+  let next = o;
   const g = o.galleryImages;
-  if (
+  const hasGallery =
     Array.isArray(g) &&
     g.length > 0 &&
     typeof g[0] === "string" &&
-    String(g[0]).trim() !== ""
-  ) {
-    return raw;
+    String(g[0]).trim() !== "";
+  if (!hasGallery && typeof o.imageUrl === "string" && o.imageUrl.trim() !== "") {
+    next = { ...next, galleryImages: [o.imageUrl.trim()] };
   }
-  if (typeof o.imageUrl === "string" && o.imageUrl.trim() !== "") {
-    return { ...o, galleryImages: [o.imageUrl.trim()] };
+  if (!Array.isArray(o.listingCategoryIds) && typeof o.listingCategoryId === "string") {
+    next = { ...next, listingCategoryIds: [o.listingCategoryId] };
   }
-  return raw;
+  return next;
 };
 
 export const productVariationPayloadSchema = z.object({
@@ -72,7 +73,7 @@ const productBodySchema = z
           : value,
       z.coerce.number().int().positive().optional(),
     ),
-    listingCategoryId: z.string().cuid(),
+    listingCategoryIds: z.array(z.string().cuid()).min(1).max(12),
     badge: badgeSchema.optional().default("NONE"),
     variations: z
       .array(productVariationPayloadSchema)
@@ -106,10 +107,13 @@ const productBodySchema = z
     const gallery = normalizeGalleryUrls(data.galleryImages);
     const primary =
       gallery.length > 0 ? gallery[0]! : data.galleryImages[0]!;
+    const dedupCategoryIds = [...new Set(data.listingCategoryIds)];
     return {
       ...data,
       galleryImages: gallery.length > 0 ? gallery : data.galleryImages,
       imageUrl: primary,
+      listingCategoryIds: dedupCategoryIds,
+      listingCategoryId: dedupCategoryIds[0]!,
     };
   });
 

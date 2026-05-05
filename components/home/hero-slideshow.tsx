@@ -10,7 +10,12 @@ type Props = {
 
 export function HeroSlideshow({ images }: Props) {
   const [activeIdx, setActiveIdx] = useState(0);
-  const slides = images;
+  const [failedSlides, setFailedSlides] = useState<Record<string, true>>({});
+  const slides = images.filter((src) => !failedSlides[src]);
+
+  useEffect(() => {
+    setFailedSlides({});
+  }, [images]);
 
   useEffect(() => {
     if (slides.length <= 1) {
@@ -38,6 +43,9 @@ export function HeroSlideshow({ images }: Props) {
             alt={`Hero slide ${idx + 1}`}
             fill
             priority={idx === 0}
+            onError={() =>
+              setFailedSlides((previous) => ({ ...previous, [src]: true }))
+            }
             className={`object-cover object-center transition-opacity duration-700 ${
               idx === activeIdx ? "opacity-100" : "opacity-0"
             }`}
