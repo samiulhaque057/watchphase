@@ -1,0 +1,15 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#F2EFE7"/>
+  <rect x="545" y="60" width="110" height="230" rx="55" fill="#2C2C2C"/>
+  <rect x="545" y="610" width="110" height="230" rx="55" fill="#2C2C2C"/>
+  <circle cx="600" cy="450" r="230" fill="#222222"/>
+  <circle cx="600" cy="450" r="180" fill="#F9F9F7"/>
+  <circle cx="600" cy="450" r="10" fill="#222222"/>
+  <line x1="600" y1="450" x2="600" y2="340" stroke="#222222" stroke-width="12" stroke-linecap="round"/>
+  <line x1="600" y1="450" x2="680" y2="450" stroke="#222222" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="600" cy="450" r="150" stroke="#D7D3CA" stroke-width="2"/>
+  <circle cx="600" cy="450" r="120" stroke="#D7D3CA" stroke-width="2"/>
+  <text x="600" y="290" fill="#4C4A45" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" letter-spacing="6">
+    WATCHH
+  </text>
+</svg>

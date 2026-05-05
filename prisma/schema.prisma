@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProductBadge {
+  NONE
+  SALE
+  SOLD_OUT
+}
+
+enum OrderStatus {
+  NEW
+  PROCESSING
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+enum FooterBarDisplayMode {
+  TEXT_ONLY
+  ICONS_ONLY
+  BOTH
+}
+
+model SiteSettings {
+  id String @id @default("default")
+
+  footerTagline        String               @default("A PLACE FOR AUTHENTIC WATCHES..")
+  footerWhatsAppUrl    String?
+  footerInstagramUrl   String?
+  footerFacebookUrl    String?
+  footerBarDisplayMode FooterBarDisplayMode @default(BOTH)
+
+  updatedAt DateTime @updatedAt
+}
+
+model ListingCategory {
+  id         String    @id @default(cuid())
+  slug       String    @unique
+  label      String
+  listingTag String    @default("Category")
+  sortOrder  Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  products   Product[]
+}
+
+model Product {
+  id                  String          @id @default(cuid())
+  slug                String          @unique
+  name                String
+  brand               String
+  sku                 String          @unique
+  description         String          @db.Text
+  /** Primary thumbnail + order line fallback; always matches first gallery image after save. */
+  imageUrl            String
+  listingCategoryId   String
+  listingCategory     ListingCategory @relation(fields: [listingCategoryId], references: [id], onDelete: Restrict)
+  priceCents          Int
+  compareAtPriceCents Int?
+  badge               ProductBadge       @default(NONE)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  orderLines         OrderItem[]
+  variations         ProductVariation[]
+  galleryImages      ProductImage[]
+
+  @@index([listingCategoryId])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+}
+
+model ProductVariation {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku       String  @unique
+  label     String
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+}
+
+model Order {
+  id                String       @id @default(cuid())
+  orderNumber       Int          @unique @default(autoincrement())
+  referenceNumber   Int?         @unique
+  status            OrderStatus  @default(NEW)
+
+  customerEmail     String
+  customerFirstName String
+  customerLastName  String
+  customerPhone     String
+
+  shipLine1 String
+  shipLine2 String?
+  shipCity String
+  shipPostal String
+  shipCountry String @default("Bangladesh")
+
+  instructions String? @db.Text
+
+  subtotalCents   Int
+  shippingCents   Int @default(0)
+  totalCents      Int
+  currency        String @default("BDT")
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  productSlug    String
+  productName    String
+  sku            String
+  imageUrl       String
+  unitPriceCents Int
+  quantity       Int @default(1)
+  lineTotalCents Int
+}
+
+model BlogPost {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  excerpt     String   @db.Text
+  imageUrl    String
+  publishedAt DateTime
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([publishedAt])
+}
