@@ -20,22 +20,22 @@ const brands = [
 ];
 
 export const metadata: Metadata = {
-  title: "Watch Phase | Premium Authentic Watches in Bangladesh",
+  title: "Watch Phase | Premium Luxury Watches in Bangladesh",
   description:
-    "Shop authentic luxury and premium watches in Bangladesh. Explore new arrivals, top brands, and curated timepieces from Watch Phase.",
+    "Shop luxury and premium watches in Bangladesh. Explore new arrivals, top brands, and curated timepieces from Watch Phase.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "Watch Phase | Premium Authentic Watches in Bangladesh",
+    title: "Watch Phase | Premium Luxury Watches in Bangladesh",
     description:
-      "Shop authentic luxury and premium watches in Bangladesh. Explore new arrivals, top brands, and curated timepieces from Watch Phase.",
+      "Shop luxury and premium watches in Bangladesh. Explore new arrivals, top brands, and curated timepieces from Watch Phase.",
     url: "/",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Watch Phase | Premium Authentic Watches in Bangladesh",
+    title: "Watch Phase | Premium Luxury Watches in Bangladesh",
     description:
-      "Shop authentic luxury and premium watches in Bangladesh. Explore new arrivals, top brands, and curated timepieces from Watch Phase.",
+      "Shop luxury and premium watches in Bangladesh. Explore new arrivals, top brands, and curated timepieces from Watch Phase.",
   },
 };
 
