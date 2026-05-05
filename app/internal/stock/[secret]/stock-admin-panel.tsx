@@ -376,7 +376,10 @@ export function StockAdminPanel({
     new Date().toISOString().slice(0, 10),
   );
   const blogCoverFileInputRef = useRef<HTMLInputElement>(null);
+  const productPhotoFileInputRef = useRef<HTMLInputElement>(null);
+  const heroFileInputRef = useRef<HTMLInputElement>(null);
   const [blogMediaPickerOpen, setBlogMediaPickerOpen] = useState(false);
+  const [dragHeroSlotIndex, setDragHeroSlotIndex] = useState<number | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [ordersDateFrom, setOrdersDateFrom] = useState("");
   const [ordersDateTo, setOrdersDateTo] = useState("");
@@ -1356,6 +1359,23 @@ export function StockAdminPanel({
       });
     },
     [heroImages, loadUploads, saveHeroImages],
+  );
+
+  const swapHeroSlots = useCallback(
+    async (fromIndex: number, toIndex: number) => {
+      if (fromIndex === toIndex) {
+        return;
+      }
+      const next = [...heroImages];
+      while (next.length < 5) {
+        next.push("");
+      }
+      const tmp = next[fromIndex] ?? "";
+      next[fromIndex] = next[toIndex] ?? "";
+      next[toIndex] = tmp;
+      await saveHeroImages(next.filter((s) => s.trim() !== ""));
+    },
+    [heroImages, saveHeroImages],
   );
 
   const handleSaveListing = async (event: React.FormEvent) => {
@@ -2802,19 +2822,32 @@ export function StockAdminPanel({
                 Upload new hero image
               </label>
               <input
+                ref={heroFileInputRef}
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
                 aria-label="Upload homepage hero image"
+                className="sr-only"
+                tabIndex={-1}
                 onChange={(event) => {
                   const file = event.target.files?.[0];
+                  event.target.value = "";
                   if (file) {
                     handleHeroUpload(file).catch(() =>
                       setHeroSubmitMessage("Upload failed."),
                     );
                   }
                 }}
-                className="text-sm text-black"
               />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={heroSaving}
+                  className="border border-black bg-black px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-300 disabled:text-white"
+                  onClick={() => heroFileInputRef.current?.click()}
+                >
+                  Upload picture
+                </button>
+              </div>
             </div>
 
             {heroSubmitMessage ? (
@@ -2829,7 +2862,40 @@ export function StockAdminPanel({
                 return (
                   <li
                     key={`hero-slot-${slotIdx}`}
-                    className="border border-gray-100 bg-[#fafafa] p-3"
+                    className={`border bg-[#fafafa] p-3 transition ${
+                      dragHeroSlotIndex === slotIdx
+                        ? "border-black"
+                        : "border-gray-100"
+                    }`}
+                    draggable={Boolean(img) && !heroSaving}
+                    onDragStart={(event) => {
+                      if (!img || heroSaving) {
+                        return;
+                      }
+                      setDragHeroSlotIndex(slotIdx);
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("text/plain", String(slotIdx));
+                    }}
+                    onDragOver={(event) => {
+                      if (dragHeroSlotIndex == null || heroSaving) {
+                        return;
+                      }
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "move";
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const fromRaw = event.dataTransfer.getData("text/plain");
+                      const from = Number.parseInt(fromRaw, 10);
+                      setDragHeroSlotIndex(null);
+                      if (!Number.isFinite(from) || from < 0 || from > 4) {
+                        return;
+                      }
+                      swapHeroSlots(from, slotIdx).catch(() =>
+                        setHeroSubmitMessage("Could not swap slides."),
+                      );
+                    }}
+                    onDragEnd={() => setDragHeroSlotIndex(null)}
                   >
                     <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-black/60">
                       Slide {slotIdx + 1}
@@ -2864,6 +2930,11 @@ export function StockAdminPanel({
                         Remove
                       </button>
                     </div>
+                    {img ? (
+                      <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-black/45">
+                        Drag this card onto another slide to swap position.
+                      </p>
+                    ) : null}
                   </li>
                 );
               })}
@@ -3148,19 +3219,31 @@ export function StockAdminPanel({
                 </div>
 
                 <input
+                  ref={productPhotoFileInputRef}
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
                   aria-label="Upload product photo file and append to gallery"
+                  className="sr-only"
+                  tabIndex={-1}
                   onChange={(event) => {
                     const file = event.target.files?.[0];
+                    event.target.value = "";
                     if (file) {
                       handleUpload(file).catch(() =>
                         setSubmitMessage("Upload failed."),
                       );
                     }
                   }}
-                  className="text-sm text-black"
                 />
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="border border-black bg-black px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white transition hover:bg-white hover:text-black"
+                    onClick={() => productPhotoFileInputRef.current?.click()}
+                  >
+                    Upload picture
+                  </button>
+                </div>
                 <p className="text-xs text-black/55">
                   PNG, JPEG, WebP uploads append to the list — or paste URLs in rows below.
                 </p>
@@ -3394,54 +3477,6 @@ export function StockAdminPanel({
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <label
-                      htmlFor="slug-field"
-                      className="text-xs uppercase tracking-[0.2em] text-black/60"
-                    >
-                      Slug (kebab-case)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={applyAutoSlugFromName}
-                      className="border border-gray-300 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-black/75 hover:border-black"
-                    >
-                      Auto
-                    </button>
-                  </div>
-                  <input
-                    id="slug-field"
-                    value={slug}
-                    onChange={(event) => setSlug(event.target.value)}
-                    required
-                    className="mt-2 w-full border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <label
-                      htmlFor="sku-field"
-                      className="text-xs uppercase tracking-[0.2em] text-black/60"
-                    >
-                      SKU
-                    </label>
-                    <button
-                      type="button"
-                      onClick={applyRandomSku}
-                      className="border border-gray-300 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-black/75 hover:border-black"
-                    >
-                      Random
-                    </button>
-                  </div>
-                  <input
-                    id="sku-field"
-                    value={sku}
-                    onChange={(event) => setSku(event.target.value)}
-                    required
-                    className="mt-2 w-full border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
-                  />
-                </div>
 
                 <div className="sm:col-span-2 rounded border border-dashed border-gray-300 bg-[#fafafa] p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3730,6 +3765,57 @@ export function StockAdminPanel({
                     rows={6}
                     className="mt-2 w-full resize-y border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
                   />
+                </div>
+
+                <div className="sm:col-span-2 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <label
+                        htmlFor="slug-field"
+                        className="text-xs uppercase tracking-[0.2em] text-black/60"
+                      >
+                        Slug (kebab-case)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={applyAutoSlugFromName}
+                        className="border border-gray-300 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-black/75 hover:border-black"
+                      >
+                        Auto
+                      </button>
+                    </div>
+                    <input
+                      id="slug-field"
+                      value={slug}
+                      onChange={(event) => setSlug(event.target.value)}
+                      required
+                      className="mt-2 w-full border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <label
+                        htmlFor="sku-field"
+                        className="text-xs uppercase tracking-[0.2em] text-black/60"
+                      >
+                        SKU
+                      </label>
+                      <button
+                        type="button"
+                        onClick={applyRandomSku}
+                        className="border border-gray-300 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-black/75 hover:border-black"
+                      >
+                        Random
+                      </button>
+                    </div>
+                    <input
+                      id="sku-field"
+                      value={sku}
+                      onChange={(event) => setSku(event.target.value)}
+                      required
+                      className="mt-2 w-full border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
+                    />
+                  </div>
                 </div>
               </div>
 
